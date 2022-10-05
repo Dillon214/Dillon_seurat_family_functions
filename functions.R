@@ -173,7 +173,33 @@ make_volcano = function(object, de, log_fc_cutoff = 0.5, p_val_cutoff = NULL, gr
 
 }
 
+generate_3d_plot = function(object, num_PCs = 20, downsample_size = Inf, group.by = 'seurat_clusters') {
+  
+  object = subset(object, downsample = downsample_size)
 
+  combined.sub <- RunUMAP(object, dims = 1:num_PCs, n.components = 3L)
+  PC_embeddings = Embeddings(object = combined.sub, reduction = 'umap')
+  plot.data <- FetchData(object = combined.sub, vars = c("UMAP_1", "UMAP_2", "UMAP_3", group.by))
+  plot.data$label <- paste(rownames(plot.data))
+  print(head(plot.data))
+  
+  figfull = plot_ly(x=plot.data$UMAP_1, y=plot.data$UMAP_2, z=plot.data$UMAP_3, type="scatter3d", mode="markers", color = plot.data$tissue, size = 15)
+  figfull = figfull %>% layout(scene = list(xaxis = list(title = "umap 1"), yaxis = list(title = "umap 2"), zaxis = list(title = "umap 3")))
+  
+  
+  
+  
+
+  plot.data.av = plot.data %>% group_by_({{group.by}}) %>% summarise(average_UMAP1 = mean(UMAP_1), average_UMAP2 = mean(UMAP_2), average_UMAP3 = mean(UMAP_3), grouping = group.by)
+  fig = plot_ly(x=plot.data.av$average_UMAP1, y=plot.data.av$average_UMAP2, z=plot.data.av$average_UMAP3, type="scatter3d", mode="markers", color = plot.data.av$grouping, size = 15)
+  
+  
+  fig = fig %>% layout(scene = list(xaxis = list(title = "umap 1"), yaxis = list(title = "umap 2"), zaxis = list(title = "umap 3")))
+  
+  
+  
+  
+}
 
 
 
