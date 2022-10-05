@@ -88,6 +88,105 @@ make_custom_gset_list = function(organism_type = 'mm', id_type = 'SYM', version 
 }
 
 
+run_dorothea_and_viper_on_seurat = function(object, cores = 1) {
+  require(dorothea)
+  require(ggplot2)
+  require(tidyverse)
+  data(dorothea_mm, package = "dorothea")
+  # run viper
+  tf_activities <- run_viper(object, dorothea_mm,
+  options = list(method = "scale", minsize = 4,
+  eset.filter = FALSE, cores = cores,
+  verbose = FALSE))
+  
+  return(tf_activities)
+}
+
+
+
+make_cell_type_bar_plot = function(object, xident, yident, make_prop = TRUE, convert_small_yidents_to_other = FALSE, small_ident_thresh = 0.05, fontsize = 5, xname = deparse(substitute(xident)), fillname = deparse(substitute(yident)), yname = ifelse(test = make_prop, yes = "proportion of total cells", no = "cell counts")) {
+  require(tidyverse)
+  print(xname)
+  
+  meta_data = object@meta.data
+  meta_data_2 <- meta_data  %>% dplyr::select({{xident}}, {{yident}}) %>% group_by({{xident}}) %>% table()
+  meta_data_2 = data.frame(t(data.frame(rbind(meta_data_2))))
+  
+  if (convert_small_yidents_to_other) {
+    count_totals = data.frame(apply(X = meta_data_2, MARGIN = 1, FUN = sum))
+    count_props = count_totals/sum(count_totals)
+    
+    names_of_lowbies = rownames(subset(count_props, apply.X...meta_data_2..MARGIN...1..FUN...sum. < small_ident_thresh))
+    names_of_highbies = rownames(subset(count_props, apply.X...meta_data_2..MARGIN...1..FUN...sum. >= small_ident_thresh))
+    meta_data_lowbie = meta_data_2[names_of_lowbies,]
+    other_vals = apply(meta_data_lowbie, MARGIN = 2, FUN = sum)
+    meta_data_2 = meta_data_2[names_of_highbies,]
+    print("other vals")
+    print(other_vals)
+    meta_data_2 = rbind(meta_data_2, other = other_vals)
+    print(meta_data_2)
+    
+  }
+  
+  if (make_prop) {
+    find_proportion = function(input_set) {
+      return(input_set/sum(input_set))
+    }
+    meta_data_2 = data.frame(apply(meta_data_2, MARGIN = 2, FUN = find_proportion))
+  }
+  print(meta_data_2)
+  #meta_data_2$xident = rownames(meta_data_2)
+  columns_to_elongate = colnames(meta_data_2)
+  meta_data_2$yident = rownames(meta_data_2)
+  meta_data_2 = meta_data_2 %>% pivot_longer(cols = columns_to_elongate, names_to = 'xident', values_to = 'count_or_prop')
+  
+  #bar_plot = ggplot(meta_data_2, aes(x = rownames(meta_data_2), y = ))
+  
+  plot_object = ggplot(meta_data_2, aes(x = xident, y = count_or_prop, fill = yident)) + geom_bar(stat = 'identity')+ theme(text=element_text(size=fontsize)) + labs(x = xname, y = yname, fill = fillname)
+  print(plot_object)
+  
+}
+
+
+
+make_volcano = function(object, de, log_fc_cutoff = 0.5, p_val_cutoff = NULL, groupby = 'seurat_clusters', graph_title = 'add a title idiot', overlap_metric = 17, point_font_size = ) {
+    require(Seurat)
+    require(ggplot2)
+    require(ggrepel)
+    Idents(object) = object[[groupby]]
+    
+    de$reg = ""
+    de$reg[de$p_val < p_val_cutoff & abs(de$avg_log2FC) > log_fc_cutoff & de$avg_log2FC > 0] <- "UP"
+    de$reg[de$p_val < p_val_cutoff & abs(de$avg_log2FC) > log_fc_cutoff & de$avg_log2FC < 0] <- "DOWN"
+    de$name = rownames(de)
+    de$name[de$reg == ""] <- ""
+    
+   
+    plot = ggplot(data=de, aes(x=avg_log2FC, y=-log10(p_val_adj), col=reg, label=name)) + 
+        geom_point(color = 'black', size = 2.5) + 
+        theme_minimal() +
+        ggrepel::geom_text_repel(color = 'Black', max.overlaps = overlap_metric, ) +
+        scale_color_manual(breaks = c("DOWN", "", "UP"),values=c("Blue", "Gray", "Yellow")) + geom_point(size = 2) + 
+        ggtitle(graph_title)
+    print(plot)
+    
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
