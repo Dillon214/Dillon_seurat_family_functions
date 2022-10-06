@@ -60,31 +60,45 @@ reorder_idents = function(object, group_by, new_levels) {
 }
 
 #The below function allows one to quickly get the genes involved with a set of gene sets. Output is a list, so can function as a custom gene set for enrichment analysis. 
-make_custom_gset_list = function(organism_type = 'mm', id_type = 'SYM', version = '7.4', brownse_gene_sets = FALSE, bahareh_gene_sets) {
+make_custom_gset_list_evolved = function(species = 'mouse', category = FALSE, subcategory = FALSE, limit_to_custom_gset_list = FALSE, supply_gmt_path = FALSE, positive_filter_with_gene_list = FALSE) {
   #http://127.0.0.1:10378/library/msigdb/doc/msigdb.html
   #https://www.bioconductor.org/packages/release/bioc/vignettes/GSEABase/inst/doc/GSEABase.pdf
   require(GSEABase)
-  require(msigdb)
+  require(msigdbr)
   require(ExperimentHub)
   require(GSEA)
   require(gage)
   require(GSVA)
   library(fgsea)
-  eh = ExperimentHub()
-  if (brownse_gene_sets) {
-    print(query(eh, 'msigdb'))
-    return()
-    }
-  gene_set = msigdb::getMsigdb(org = organism_type, id = id_type, version = version)
-  gene_set = appendKEGG(gene_set)
     
-  gset_list = list()
-  for (b_gset in bahareh_gene_sets) {
-    specific_gene_set = gene_set[[b_gset]]
-    print(specific_gene_set)
-    gset_list[[b_gset]] = specific_gene_set@geneIds
+  if (supply_gmt_path != FALSE) {
+      gene_set = fgsea::gmtPathways(gmt.file = supply_gmt_path)
+      
+  }else{
+      custom_set = msigdbr(species = species)
+      if (positive_filter_with_gene_list != FALSE) {
+          print(head(custom_set))
+          print(colnames(custom_set))
+          custom_set = subset(custom_set, gene_symbol %in% positive_filter_with_gene_list)
+      }
+
+      if (category != FALSE) {
+          custom_set = subset(custom_set, gs_cat %in% category)
+          if (subcategory != FALSE) {
+              custom_set = subset(custom_set, gs_subcat %in% subcategory)
+          }
+      }
+
+      gene_set = custom_set %>% split(x = .$gene_symbol, f = .$gs_name)
+      
   }
-  return(gset_list)
+
+  
+  if (limit_to_custom_gset_list != FALSE) {
+         gene_set = gene_set[limit_to_custom_gset_list]
+  }
+  
+  return(gene_set)
 }
 
 
